@@ -1,5 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html><html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -18,7 +17,7 @@
     table {
       width: 100%;
       border-collapse: collapse;
-      margin: 20px 0;
+      margin: 20px 0 0 0;
       font-size: 0.9rem;
     }
     table, th, td {
@@ -73,29 +72,26 @@
 </head>
 <body>
   <h1>Sleep & Symptom Diary</h1>
-  <button id="voiceBtn">Start Voice Entry</button>
-
-  <h2>Sleep Times</h2>
+  <button id="voiceBtn">Start Voice Entry</button>  <h2>Sleep Times</h2>
   <table id="sleepTable">
     <thead>
       <tr>
         <th>Night</th>
-        <th>Time you start your day</th>
-        <th>Time you go to bed</th>
+        <th>Start of Day</th>
+        <th>Bed Time</th>
+        <th>Action</th>
       </tr>
     </thead>
     <tbody>
-      <tr><td>Night 1</td><td contenteditable></td><td contenteditable></td></tr>
-      <tr><td>Night 2</td><td contenteditable></td><td contenteditable></td></tr>
-      <tr><td>Night 3</td><td contenteditable></td><td contenteditable></td></tr>
-      <tr><td>Night 4</td><td contenteditable></td><td contenteditable></td></tr>
-      <tr><td>Night 5</td><td contenteditable></td><td contenteditable></td></tr>
-      <tr><td>Night 6</td><td contenteditable></td><td contenteditable></td></tr>
-      <tr><td>Night 7</td><td contenteditable></td><td contenteditable></td></tr>
+      <tr><td>Night 1</td><td contenteditable data-night="0" data-type="start"></td><td contenteditable data-night="0" data-type="end"></td><td><button class="small-btn" onclick="saveSleep(0)">Save</button></td></tr>
+      <tr><td>Night 2</td><td contenteditable data-night="1" data-type="start"></td><td contenteditable data-night="1" data-type="end"></td><td><button class="small-btn" onclick="saveSleep(1)">Save</button></td></tr>
+      <tr><td>Night 3</td><td contenteditable data-night="2" data-type="start"></td><td contenteditable data-night="2" data-type="end"></td><td><button class="small-btn" onclick="saveSleep(2)">Save</button></td></tr>
+      <tr><td>Night 4</td><td contenteditable data-night="3" data-type="start"></td><td contenteditable data-night="3" data-type="end"></td><td><button class="small-btn" onclick="saveSleep(3)">Save</button></td></tr>
+      <tr><td>Night 5</td><td contenteditable data-night="4" data-type="start"></td><td contenteditable data-night="4" data-type="end"></td><td><button class="small-btn" onclick="saveSleep(4)">Save</button></td></tr>
+      <tr><td>Night 6</td><td contenteditable data-night="5" data-type="start"></td><td contenteditable data-night="5" data-type="end"></td><td><button class="small-btn" onclick="saveSleep(5)">Save</button></td></tr>
+      <tr><td>Night 7</td><td contenteditable data-night="6" data-type="start"></td><td contenteditable data-night="6" data-type="end"></td><td><button class="small-btn" onclick="saveSleep(6)">Save</button></td></tr>
     </tbody>
-  </table>
-
-  <canvas id="sleepChart" width="700" height="300"></canvas>
+  </table><canvas id="sleepChart" width="700" height="300"></canvas>
 
   <h2>Symptoms and Activities</h2>
   <table id="symptomTable">
@@ -109,37 +105,34 @@
       </tr>
     </thead>
     <tbody></tbody>
-  </table>
-
-  <div class="entry-form">
+  </table>  <div class="entry-form">
     <input type="date" id="entryDate" />
     <input type="time" id="entryTime" />
     <textarea id="entrySymptom" rows="2" placeholder="Symptom..."></textarea>
     <textarea id="entryActivity" rows="2" placeholder="Activity..."></textarea>
     <button onclick="addEntry()">Add Entry</button>
-  </div>
+  </div><canvas id="graphCanvas" width="700" height="300"></canvas>
 
-  <canvas id="graphCanvas" width="700" height="300"></canvas>
-
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>  <script>
     const voiceBtn = document.getElementById('voiceBtn');
     const recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recorder = recognition ? new recognition() : null;
     let isRecording = false;
 
     let dataEntries = JSON.parse(localStorage.getItem('entries') || '[]');
+    let sleepEntries = JSON.parse(localStorage.getItem('sleep') || '[]');
+    if (!Array.isArray(sleepEntries) || sleepEntries.length < 7) {
+      sleepEntries = Array.from({ length: 7 }, () => ({ start: '', end: '' }));
+    }
 
     if (recorder) {
       recorder.continuous = true;
       recorder.interimResults = false;
       recorder.lang = 'en-US';
-
       recorder.onresult = function(event) {
         const transcript = event.results[event.results.length - 1][0].transcript.trim();
         parseVoiceEntry(transcript);
       };
-
       voiceBtn.onclick = () => {
         if (!isRecording) {
           recorder.start();
@@ -161,13 +154,11 @@
       const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       document.getElementById('entryDate').value = today;
       document.getElementById('entryTime').value = now;
-
       if (text.toLowerCase().includes("symptom")) {
         document.getElementById('entrySymptom').value = text;
       } else {
         document.getElementById('entryActivity').value = text;
       }
-
       addEntry();
     }
 
@@ -177,10 +168,8 @@
       const symptomVal = symptom || document.getElementById('entrySymptom').value;
       const activityVal = activity || document.getElementById('entryActivity').value;
       if (!date || !time || (!symptomVal && !activityVal)) return;
-
       dataEntries.push({ date, time, symptom: symptomVal, activity: activityVal });
       saveAndRender();
-
       document.getElementById('entrySymptom').value = '';
       document.getElementById('entryActivity').value = '';
     }
@@ -215,17 +204,14 @@
         row.insertCell(2).textContent = entry.symptom;
         row.insertCell(3).textContent = entry.activity;
         const actionCell = row.insertCell(4);
-
         const cloneBtn = document.createElement('button');
         cloneBtn.textContent = 'Duplicate';
         cloneBtn.className = 'small-btn';
         cloneBtn.onclick = () => duplicateEntry(entry.symptom, entry.activity);
-
         const delBtn = document.createElement('button');
         delBtn.textContent = 'Delete';
         delBtn.className = 'small-btn delete-btn';
         delBtn.onclick = () => deleteEntry(index);
-
         actionCell.appendChild(cloneBtn);
         actionCell.appendChild(delBtn);
       });
@@ -234,20 +220,15 @@
     function drawSymptomChart() {
       const ctx = document.getElementById('graphCanvas').getContext('2d');
       if (window.myChart) window.myChart.destroy();
-
       const symptomCounts = {};
       dataEntries.forEach(e => {
         if (e.symptom) symptomCounts[e.symptom] = (symptomCounts[e.symptom] || 0) + 1;
       });
-
       window.myChart = new Chart(ctx, {
         type: 'bar',
         data: {
           labels: Object.keys(symptomCounts),
-          datasets: [{
-            label: 'Symptom Frequency',
-            data: Object.values(symptomCounts),
-          }]
+          datasets: [{ label: 'Symptom Frequency', data: Object.values(symptomCounts) }]
         },
         options: {
           responsive: true,
@@ -261,58 +242,50 @@
 
     function drawSleepChart() {
       const ctx = document.getElementById('sleepChart').getContext('2d');
-      const rows = Array.from(document.querySelectorAll('#sleepTable tbody tr'));
-
-      const labels = [], bedTimes = [], wakeTimes = [];
-      rows.forEach((row, i) => {
-        const wake = row.cells[1].textContent.trim();
-        const bed = row.cells[2].textContent.trim();
-        labels.push(`Night ${i + 1}`);
-        bedTimes.push(parseFloat(bed.replace(':', '.')) || 0);
-        wakeTimes.push(parseFloat(wake.replace(':', '.')) || 0);
-      });
-
+      const labels = sleepEntries.map((_, i) => `Night ${i + 1}`);
+      const startTimes = sleepEntries.map(e => parseFloat((e.start || '0').replace(':', '.')));
+      const endTimes = sleepEntries.map(e => parseFloat((e.end || '0').replace(':', '.')));
       if (window.sleepChart) window.sleepChart.destroy();
-
       window.sleepChart = new Chart(ctx, {
         type: 'bar',
         data: {
           labels,
           datasets: [
-            {
-              label: 'Wake Time',
-              data: wakeTimes,
-              backgroundColor: '#6c757d'
-            },
-            {
-              label: 'Bed Time',
-              data: bedTimes,
-              backgroundColor: '#007bff'
-            }
+            { label: 'Start of Day', data: startTimes, backgroundColor: '#6c757d' },
+            { label: 'Bed Time', data: endTimes, backgroundColor: '#007bff' }
           ]
         },
         options: {
           responsive: true,
-          plugins: {
-            title: { display: true, text: 'Sleep Schedule' }
-          },
+          plugins: { title: { display: true, text: 'Sleep Schedule' } },
           scales: {
-            y: {
-              beginAtZero: true,
-              max: 24,
-              title: { display: true, text: 'Hour' }
-            }
+            y: { beginAtZero: true, max: 24, title: { display: true, text: 'Hour' } }
           }
         }
       });
     }
 
-    // Load and initialize
+    function saveSleep(nightIndex) {
+      const startCell = document.querySelector(`[data-night='${nightIndex}'][data-type='start']`);
+      const endCell = document.querySelector(`[data-night='${nightIndex}'][data-type='end']`);
+      sleepEntries[nightIndex] = {
+        start: startCell.textContent.trim(),
+        end: endCell.textContent.trim()
+      };
+      localStorage.setItem('sleep', JSON.stringify(sleepEntries));
+      drawSleepChart();
+    }
+
+    function loadSleep() {
+      sleepEntries.forEach((e, i) => {
+        document.querySelector(`[data-night='${i}'][data-type='start']`).textContent = e.start;
+        document.querySelector(`[data-night='${i}'][data-type='end']`).textContent = e.end;
+      });
+    }
+
+    // Init
     saveAndRender();
+    loadSleep();
     drawSleepChart();
-    document.querySelectorAll('#sleepTable td').forEach(cell => {
-      cell.addEventListener('input', drawSleepChart);
-    });
-  </script>
-</body>
+  </script></body>
 </html>
