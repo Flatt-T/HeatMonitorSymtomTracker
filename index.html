@@ -85,7 +85,13 @@
       </tr>
     </thead>
     <tbody>
-      ${[...Array(7)].map((_, i) => `<tr><td>Night ${i+1}</td><td contenteditable></td><td contenteditable></td></tr>`).join('')}
+      <tr><td>Night 1</td><td contenteditable></td><td contenteditable></td></tr>
+      <tr><td>Night 2</td><td contenteditable></td><td contenteditable></td></tr>
+      <tr><td>Night 3</td><td contenteditable></td><td contenteditable></td></tr>
+      <tr><td>Night 4</td><td contenteditable></td><td contenteditable></td></tr>
+      <tr><td>Night 5</td><td contenteditable></td><td contenteditable></td></tr>
+      <tr><td>Night 6</td><td contenteditable></td><td contenteditable></td></tr>
+      <tr><td>Night 7</td><td contenteditable></td><td contenteditable></td></tr>
     </tbody>
   </table>
 
@@ -261,9 +267,9 @@
       rows.forEach((row, i) => {
         const wake = row.cells[1].textContent.trim();
         const bed = row.cells[2].textContent.trim();
-        labels.push(`Night ${i+1}`);
-        bedTimes.push(bed);
-        wakeTimes.push(wake);
+        labels.push(`Night ${i + 1}`);
+        bedTimes.push(parseFloat(bed.replace(':', '.')) || 0);
+        wakeTimes.push(parseFloat(wake.replace(':', '.')) || 0);
       });
 
       if (window.sleepChart) window.sleepChart.destroy();
@@ -275,12 +281,12 @@
           datasets: [
             {
               label: 'Wake Time',
-              data: wakeTimes.map(t => parseFloat(t.replace(':','.') || 0)),
+              data: wakeTimes,
               backgroundColor: '#6c757d'
             },
             {
               label: 'Bed Time',
-              data: bedTimes.map(t => parseFloat(t.replace(':','.') || 0)),
+              data: bedTimes,
               backgroundColor: '#007bff'
             }
           ]
@@ -288,16 +294,20 @@
         options: {
           responsive: true,
           plugins: {
-            title: { display: true, text: 'Sleep Schedule' },
+            title: { display: true, text: 'Sleep Schedule' }
           },
           scales: {
-            y: { beginAtZero: true, max: 24, title: { display: true, text: 'Hour' } }
+            y: {
+              beginAtZero: true,
+              max: 24,
+              title: { display: true, text: 'Hour' }
+            }
           }
         }
       });
     }
 
-    // Load on start
+    // Load and initialize
     saveAndRender();
     drawSleepChart();
     document.querySelectorAll('#sleepTable td').forEach(cell => {
@@ -306,7 +316,3 @@
   </script>
 </body>
 </html>
-
-
-Let me know how you'd like to extend or package it!
-
