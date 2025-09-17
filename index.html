@@ -8,7 +8,7 @@
     body {
       font-family: sans-serif;
       padding: 20px;
-      max-width: 800px;
+      max-width: 900px;
       margin: auto;
       background: #f9f9f9;
     }
@@ -19,13 +19,17 @@
       width: 100%;
       border-collapse: collapse;
       margin: 20px 0;
+      font-size: 0.9rem;
     }
     table, th, td {
       border: 1px solid #ccc;
     }
     th, td {
-      padding: 10px;
+      padding: 8px;
       text-align: center;
+    }
+    td[contenteditable] {
+      background: #fff8dc;
     }
     button {
       display: block;
@@ -54,6 +58,16 @@
       font-size: 0.9rem;
       margin: 2px;
       background: #28a745;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .delete-btn {
+      background: #dc3545;
+    }
+    canvas {
+      margin-top: 40px;
     }
   </style>
 </head>
@@ -66,20 +80,16 @@
     <thead>
       <tr>
         <th>Night</th>
-        <th>Time you go to bed</th>
         <th>Time you start your day</th>
+        <th>Time you go to bed</th>
       </tr>
     </thead>
     <tbody>
-      <tr><td>Night 1</td><td contenteditable></td><td contenteditable></td></tr>
-      <tr><td>Night 2</td><td contenteditable></td><td contenteditable></td></tr>
-      <tr><td>Night 3</td><td contenteditable></td><td contenteditable></td></tr>
-      <tr><td>Night 4</td><td contenteditable></td><td contenteditable></td></tr>
-      <tr><td>Night 5</td><td contenteditable></td><td contenteditable></td></tr>
-      <tr><td>Night 6</td><td contenteditable></td><td contenteditable></td></tr>
-      <tr><td>Night 7</td><td contenteditable></td><td contenteditable></td></tr>
+      ${[...Array(7)].map((_, i) => `<tr><td>Night ${i+1}</td><td contenteditable></td><td contenteditable></td></tr>`).join('')}
     </tbody>
   </table>
+
+  <canvas id="sleepChart" width="700" height="300"></canvas>
 
   <h2>Symptoms and Activities</h2>
   <table id="symptomTable">
@@ -92,8 +102,7 @@
         <th>Action</th>
       </tr>
     </thead>
-    <tbody>
-    </tbody>
+    <tbody></tbody>
   </table>
 
   <div class="entry-form">
@@ -104,13 +113,16 @@
     <button onclick="addEntry()">Add Entry</button>
   </div>
 
-  <canvas id="graphCanvas" width="700" height="400"></canvas>
+  <canvas id="graphCanvas" width="700" height="300"></canvas>
 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
     const voiceBtn = document.getElementById('voiceBtn');
     const recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recorder = recognition ? new recognition() : null;
     let isRecording = false;
+
+    let dataEntries = JSON.parse(localStorage.getItem('entries') || '[]');
 
     if (recorder) {
       recorder.continuous = true;
@@ -160,59 +172,77 @@
       const activityVal = activity || document.getElementById('entryActivity').value;
       if (!date || !time || (!symptomVal && !activityVal)) return;
 
-      const table = document.getElementById('symptomTable').querySelector('tbody');
-      const row = table.insertRow();
-      row.insertCell(0).textContent = date;
-      row.insertCell(1).textContent = time;
-      row.insertCell(2).textContent = symptomVal;
-      row.insertCell(3).textContent = activityVal;
-
-      const actionCell = row.insertCell(4);
-      const cloneBtn = document.createElement('button');
-      cloneBtn.textContent = 'Duplicate';
-      cloneBtn.className = 'small-btn';
-      cloneBtn.onclick = () => duplicateEntry(symptomVal, activityVal);
-      actionCell.appendChild(cloneBtn);
+      dataEntries.push({ date, time, symptom: symptomVal, activity: activityVal });
+      saveAndRender();
 
       document.getElementById('entrySymptom').value = '';
       document.getElementById('entryActivity').value = '';
-
-      drawChart();
     }
 
     function duplicateEntry(symptom, activity) {
-      document.getElementById('entrySymptom').value = symptom;
-      document.getElementById('entryActivity').value = activity;
-      document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
-      document.getElementById('entryTime').value = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      addEntry(symptom, activity);
+      const date = new Date().toISOString().split('T')[0];
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      dataEntries.push({ date, time, symptom, activity });
+      saveAndRender();
     }
 
-    function drawChart() {
+    function deleteEntry(index) {
+      if (confirm('Delete this entry?')) {
+        dataEntries.splice(index, 1);
+        saveAndRender();
+      }
+    }
+
+    function saveAndRender() {
+      localStorage.setItem('entries', JSON.stringify(dataEntries));
+      renderEntries();
+      drawSymptomChart();
+    }
+
+    function renderEntries() {
+      const tbody = document.querySelector('#symptomTable tbody');
+      tbody.innerHTML = '';
+      dataEntries.forEach((entry, index) => {
+        const row = tbody.insertRow();
+        row.insertCell(0).textContent = entry.date;
+        row.insertCell(1).textContent = entry.time;
+        row.insertCell(2).textContent = entry.symptom;
+        row.insertCell(3).textContent = entry.activity;
+        const actionCell = row.insertCell(4);
+
+        const cloneBtn = document.createElement('button');
+        cloneBtn.textContent = 'Duplicate';
+        cloneBtn.className = 'small-btn';
+        cloneBtn.onclick = () => duplicateEntry(entry.symptom, entry.activity);
+
+        const delBtn = document.createElement('button');
+        delBtn.textContent = 'Delete';
+        delBtn.className = 'small-btn delete-btn';
+        delBtn.onclick = () => deleteEntry(index);
+
+        actionCell.appendChild(cloneBtn);
+        actionCell.appendChild(delBtn);
+      });
+    }
+
+    function drawSymptomChart() {
       const ctx = document.getElementById('graphCanvas').getContext('2d');
       if (window.myChart) window.myChart.destroy();
 
-      const rows = Array.from(document.querySelectorAll('#symptomTable tbody tr'));
       const symptomCounts = {};
-
-      rows.forEach(row => {
-        const symptom = row.cells[2].textContent;
-        if (symptom) {
-          symptomCounts[symptom] = (symptomCounts[symptom] || 0) + 1;
-        }
+      dataEntries.forEach(e => {
+        if (e.symptom) symptomCounts[e.symptom] = (symptomCounts[e.symptom] || 0) + 1;
       });
-
-      const data = {
-        labels: Object.keys(symptomCounts),
-        datasets: [{
-          label: 'Symptom Frequency',
-          data: Object.values(symptomCounts),
-        }]
-      };
 
       window.myChart = new Chart(ctx, {
         type: 'bar',
-        data: data,
+        data: {
+          labels: Object.keys(symptomCounts),
+          datasets: [{
+            label: 'Symptom Frequency',
+            data: Object.values(symptomCounts),
+          }]
+        },
         options: {
           responsive: true,
           plugins: {
@@ -222,9 +252,61 @@
         }
       });
     }
+
+    function drawSleepChart() {
+      const ctx = document.getElementById('sleepChart').getContext('2d');
+      const rows = Array.from(document.querySelectorAll('#sleepTable tbody tr'));
+
+      const labels = [], bedTimes = [], wakeTimes = [];
+      rows.forEach((row, i) => {
+        const wake = row.cells[1].textContent.trim();
+        const bed = row.cells[2].textContent.trim();
+        labels.push(`Night ${i+1}`);
+        bedTimes.push(bed);
+        wakeTimes.push(wake);
+      });
+
+      if (window.sleepChart) window.sleepChart.destroy();
+
+      window.sleepChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Wake Time',
+              data: wakeTimes.map(t => parseFloat(t.replace(':','.') || 0)),
+              backgroundColor: '#6c757d'
+            },
+            {
+              label: 'Bed Time',
+              data: bedTimes.map(t => parseFloat(t.replace(':','.') || 0)),
+              backgroundColor: '#007bff'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            title: { display: true, text: 'Sleep Schedule' },
+          },
+          scales: {
+            y: { beginAtZero: true, max: 24, title: { display: true, text: 'Hour' } }
+          }
+        }
+      });
+    }
+
+    // Load on start
+    saveAndRender();
+    drawSleepChart();
+    document.querySelectorAll('#sleepTable td').forEach(cell => {
+      cell.addEventListener('input', drawSleepChart);
+    });
   </script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </body>
 </html>
 
+
+Let me know how you'd like to extend or package it!
 
