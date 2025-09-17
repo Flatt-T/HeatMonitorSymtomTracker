@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sleep & Symptom Diary</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      max-width: 800px;
+      margin: auto;
+      background: #f9f9f9;
+    }
+    h1, h2 {
+      text-align: center;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+    }
+    table, th, td {
+      border: 1px solid #ccc;
+    }
+    th, td {
+      padding: 10px;
+      text-align: center;
+    }
+    button {
+      display: block;
+      width: 100%;
+      padding: 20px;
+      font-size: 1.5rem;
+      margin: 20px 0;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button:disabled {
+      background: #999;
+    }
+    .entry-form input, .entry-form textarea {
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+      margin-bottom: 15px;
+      font-size: 1rem;
+    }
+    .small-btn {
+      padding: 5px 10px;
+      font-size: 0.9rem;
+      margin: 2px;
+      background: #28a745;
+    }
+  </style>
+</head>
+<body>
+  <h1>Sleep & Symptom Diary</h1>
+  <button id="voiceBtn">Start Voice Entry</button>
+
+  <h2>Sleep Times</h2>
+  <table id="sleepTable">
+    <thead>
+      <tr>
+        <th>Night</th>
+        <th>Time you go to bed</th>
+        <th>Time you start your day</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Night 1</td><td contenteditable></td><td contenteditable></td></tr>
+      <tr><td>Night 2</td><td contenteditable></td><td contenteditable></td></tr>
+      <tr><td>Night 3</td><td contenteditable></td><td contenteditable></td></tr>
+      <tr><td>Night 4</td><td contenteditable></td><td contenteditable></td></tr>
+      <tr><td>Night 5</td><td contenteditable></td><td contenteditable></td></tr>
+      <tr><td>Night 6</td><td contenteditable></td><td contenteditable></td></tr>
+      <tr><td>Night 7</td><td contenteditable></td><td contenteditable></td></tr>
+    </tbody>
+  </table>
+
+  <h2>Symptoms and Activities</h2>
+  <table id="symptomTable">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Time</th>
+        <th>Symptom</th>
+        <th>Activity</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+    </tbody>
+  </table>
+
+  <div class="entry-form">
+    <input type="date" id="entryDate" />
+    <input type="time" id="entryTime" />
+    <textarea id="entrySymptom" rows="2" placeholder="Symptom..."></textarea>
+    <textarea id="entryActivity" rows="2" placeholder="Activity..."></textarea>
+    <button onclick="addEntry()">Add Entry</button>
+  </div>
+
+  <canvas id="graphCanvas" width="700" height="400"></canvas>
+
+  <script>
+    const voiceBtn = document.getElementById('voiceBtn');
+    const recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recorder = recognition ? new recognition() : null;
+    let isRecording = false;
+
+    if (recorder) {
+      recorder.continuous = true;
+      recorder.interimResults = false;
+      recorder.lang = 'en-US';
+
+      recorder.onresult = function(event) {
+        const transcript = event.results[event.results.length - 1][0].transcript.trim();
+        parseVoiceEntry(transcript);
+      };
+
+      voiceBtn.onclick = () => {
+        if (!isRecording) {
+          recorder.start();
+          voiceBtn.textContent = 'Stop Voice Entry';
+          isRecording = true;
+        } else {
+          recorder.stop();
+          voiceBtn.textContent = 'Start Voice Entry';
+          isRecording = false;
+        }
+      };
+    } else {
+      voiceBtn.disabled = true;
+      voiceBtn.textContent = 'Voice input not supported';
+    }
+
+    function parseVoiceEntry(text) {
+      const today = new Date().toISOString().split('T')[0];
+      const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      document.getElementById('entryDate').value = today;
+      document.getElementById('entryTime').value = now;
+
+      if (text.toLowerCase().includes("symptom")) {
+        document.getElementById('entrySymptom').value = text;
+      } else {
+        document.getElementById('entryActivity').value = text;
+      }
+
+      addEntry();
+    }
+
+    function addEntry(symptom = '', activity = '') {
+      const date = document.getElementById('entryDate').value || new Date().toISOString().split('T')[0];
+      const time = document.getElementById('entryTime').value || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const symptomVal = symptom || document.getElementById('entrySymptom').value;
+      const activityVal = activity || document.getElementById('entryActivity').value;
+      if (!date || !time || (!symptomVal && !activityVal)) return;
+
+      const table = document.getElementById('symptomTable').querySelector('tbody');
+      const row = table.insertRow();
+      row.insertCell(0).textContent = date;
+      row.insertCell(1).textContent = time;
+      row.insertCell(2).textContent = symptomVal;
+      row.insertCell(3).textContent = activityVal;
+
+      const actionCell = row.insertCell(4);
+      const cloneBtn = document.createElement('button');
+      cloneBtn.textContent = 'Duplicate';
+      cloneBtn.className = 'small-btn';
+      cloneBtn.onclick = () => duplicateEntry(symptomVal, activityVal);
+      actionCell.appendChild(cloneBtn);
+
+      document.getElementById('entrySymptom').value = '';
+      document.getElementById('entryActivity').value = '';
+
+      drawChart();
+    }
+
+    function duplicateEntry(symptom, activity) {
+      document.getElementById('entrySymptom').value = symptom;
+      document.getElementById('entryActivity').value = activity;
+      document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
+      document.getElementById('entryTime').value = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      addEntry(symptom, activity);
+    }
+
+    function drawChart() {
+      const ctx = document.getElementById('graphCanvas').getContext('2d');
+      if (window.myChart) window.myChart.destroy();
+
+      const rows = Array.from(document.querySelectorAll('#symptomTable tbody tr'));
+      const symptomCounts = {};
+
+      rows.forEach(row => {
+        const symptom = row.cells[2].textContent;
+        if (symptom) {
+          symptomCounts[symptom] = (symptomCounts[symptom] || 0) + 1;
+        }
+      });
+
+      const data = {
+        labels: Object.keys(symptomCounts),
+        datasets: [{
+          label: 'Symptom Frequency',
+          data: Object.values(symptomCounts),
+        }]
+      };
+
+      window.myChart = new Chart(ctx, {
+        type: 'bar',
+        data: data,
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false },
+            title: { display: true, text: 'Symptom Frequency' }
+          }
+        }
+      });
+    }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</body>
+</html>
+
+
